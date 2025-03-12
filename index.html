@@ -18,7 +18,7 @@
     <button onclick="startStreaming()">Start Streaming</button>
 
     <script>
-        let ws = new WebSocket("ws://localhost:8080/ws/1");
+        let ws = new WebSocket("https://vshare-rr5y.onrender.com/ws/1");
 
         ws.onmessage = function(event) {
             const blob = new Blob([event.data], { type: "video/webm" });
