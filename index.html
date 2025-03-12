@@ -10,7 +10,7 @@
     <button onclick="startStream()">Start Sharing</button>
 
     <script>
-        const ws = new WebSocket("ws://localhost:8080/vshare");
+        const ws = new WebSocket("https://vshare-rr5y.onrender.com/vshare");
         const video = document.getElementById("video");
 
         ws.onmessage = (event) => {
