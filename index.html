@@ -6,21 +6,27 @@
     <title>Video Share</title>
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
+    <h2>Your Video</h2>
+    <video id="localVideo" autoplay playsinline></video>
+    
+    <h2>Remote Video</h2>
+    <video id="remoteVideo" autoplay playsinline></video>
+    
     <button onclick="startStream()">Start Sharing</button>
 
     <script>
         const ws = new WebSocket("https://vshare-rr5y.onrender.com/vshare");
-        const video = document.getElementById("video");
+        const localVideo = document.getElementById("localVideo");
+        const remoteVideo = document.getElementById("remoteVideo");
 
         ws.onmessage = (event) => {
             const blob = new Blob([event.data]);
-            video.src = URL.createObjectURL(blob);
+            remoteVideo.src = URL.createObjectURL(blob);
         };
 
         async function startStream() {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
+            localVideo.srcObject = stream;
             const mediaRecorder = new MediaRecorder(stream);
 
             mediaRecorder.ondataavailable = (event) => {
