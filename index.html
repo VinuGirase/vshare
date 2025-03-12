@@ -29,7 +29,7 @@
                     const formData = new FormData();
                     formData.append("video", event.data);
 
-                    await fetch("https://vshare-rr5y.onrender.com/vshare", {
+                    await fetch("https://vshare-rr5y.onrender.com/vshare1", {
                         method: "POST",
                         body: formData
                     });
@@ -40,7 +40,7 @@
         }
 
         async function fetchVideo() {
-            const response = await fetch("https://vshare-rr5y.onrender.com/vshare");
+            const response = await fetch("https://vshare-rr5y.onrender.com/vshare2");
             const blob = await response.blob();
             remoteVideo.src = URL.createObjectURL(blob);
             fetchVideo();  // Keep polling
