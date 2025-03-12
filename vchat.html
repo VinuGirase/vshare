@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        video { width: 45%; border: 2px solid #69e4ff; margin: 10px; }
+        button { padding: 10px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Video Chat</h2>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <br>
+    <button onclick="startStreaming()">Start Streaming</button>
+
+    <script>
+        let ws = new WebSocket("ws://localhost:8080/ws/1");
+
+        ws.onmessage = function(event) {
+            const blob = new Blob([event.data], { type: "video/webm" });
+            document.getElementById("remoteVideo").src = URL.createObjectURL(blob);
+        };
+
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                document.getElementById("localVideo").srcObject = stream;
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+                mediaRecorder.ondataavailable = event => ws.send(event.data);
+
+                window.startStreaming = () => mediaRecorder.start(100);
+            })
+            .catch(error => console.error("Error accessing media devices:", error));
+    </script>
+</body>
+</html>
