@@ -13,30 +13,48 @@
     <video id="remoteVideo" autoplay playsinline></video>
 
     <script>
-        const ws = new WebSocket("wss://vshare-rr5y.onrender.com/vshare"); // Use wss for secure WebSocket
+        const ws = new WebSocket("wss://vshare-rr5y.onrender.com/vshare"); 
         const localVideo = document.getElementById("localVideo");
         const remoteVideo = document.getElementById("remoteVideo");
 
-        // Capture user video
+        // MediaSource for smooth video playback
+        let mediaSource = new MediaSource();
+        remoteVideo.src = URL.createObjectURL(mediaSource);
+        let sourceBuffer;
+
+        mediaSource.addEventListener("sourceopen", () => {
+            sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+        });
+
+        // Capture and send video
         async function startVideo() {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             localVideo.srcObject = stream;
-
-            const mediaRecorder = new MediaRecorder(stream);
+            
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+            
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
-                    ws.send(event.data); // Send video data
+                    ws.send(event.data);
                 }
             };
-            mediaRecorder.start(100);
+
+            mediaRecorder.start(200);
         }
 
+        // Receive and play video
         ws.onmessage = (event) => {
-            const blob = new Blob([event.data]);
-            remoteVideo.src = URL.createObjectURL(blob);
+            let reader = new FileReader();
+            reader.onloadend = () => {
+                let arrayBuffer = reader.result;
+                if (sourceBuffer && !sourceBuffer.updating) {
+                    sourceBuffer.appendBuffer(new Uint8Array(arrayBuffer));
+                }
+            };
+            reader.readAsArrayBuffer(event.data);
         };
 
-        startVideo(); // Start capturing video on page load
+        startVideo();
     </script>
 </body>
 </html>
