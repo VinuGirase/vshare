@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	clients   = make(map[*websocket.Conn]bool) // Connected clients
-	broadcast = make(chan []byte)              // Channel to send video data
+	clients   = make(map[*websocket.Conn]bool)
+	broadcast = make(chan []byte)
 	mutex     sync.Mutex
 	upgrader  = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true }, // Allow all connections
+		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 )
 
-// Handle WebSocket connections
+// WebSocket Handler
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -38,11 +38,11 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			mutex.Unlock()
 			break
 		}
-		broadcast <- data // Send received data to all clients
+		broadcast <- data
 	}
 }
 
-// Broadcast video data to all clients
+// Broadcast video to all clients
 func handleMessages() {
 	for {
 		data := <-broadcast
