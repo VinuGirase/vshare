@@ -12,6 +12,7 @@ var (
 	mutex     sync.Mutex
 )
 
+// Upload video (POST)
 func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		file, _, err := r.FormFile("video")
@@ -33,6 +34,7 @@ func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Fetch video (GET)
 func getVideo(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	if len(videoData) == 0 {
@@ -45,8 +47,8 @@ func getVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/vshare", uploadVideo)  // POST video data
-	http.HandleFunc("/vshare", getVideo)     // GET video data
+	http.HandleFunc("/vshare1", uploadVideo) // Upload video data
+	http.HandleFunc("/vshare2", getVideo)    // Fetch video data
 
 	fmt.Println("Server running on port 8080")
 	err := http.ListenAndServe(":8080", nil)
