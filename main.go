@@ -2,57 +2,70 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 var (
-	videoData []byte
+	clients   = make(map[*websocket.Conn]bool) // Connected clients
+	broadcast = make(chan []byte)              // Channel to send video data
 	mutex     sync.Mutex
+	upgrader  = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true }, // Allow all connections
+	}
 )
 
-// Upload video (POST)
-func uploadVideo(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		file, _, err := r.FormFile("video")
-		if err != nil {
-			http.Error(w, "Failed to read video", http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
+// Handle WebSocket connections
+func handleConnections(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Println("WebSocket Upgrade Error:", err)
+		return
+	}
+	defer conn.Close()
 
-		data, err := io.ReadAll(file)
-		if err != nil {
-			http.Error(w, "Failed to process video", http.StatusInternalServerError)
-			return
-		}
+	mutex.Lock()
+	clients[conn] = true
+	mutex.Unlock()
 
-		mutex.Lock()
-		videoData = data
-		mutex.Unlock()
+	for {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			mutex.Lock()
+			delete(clients, conn)
+			mutex.Unlock()
+			break
+		}
+		broadcast <- data // Send received data to all clients
 	}
 }
 
-// Fetch video (GET)
-func getVideo(w http.ResponseWriter, r *http.Request) {
-	mutex.Lock()
-	if len(videoData) == 0 {
+// Broadcast video data to all clients
+func handleMessages() {
+	for {
+		data := <-broadcast
+		mutex.Lock()
+		for client := range clients {
+			err := client.WriteMessage(websocket.BinaryMessage, data)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+			}
+		}
 		mutex.Unlock()
-		w.WriteHeader(http.StatusNoContent)
-		return
 	}
-	w.Write(videoData)
-	mutex.Unlock()
 }
 
 func main() {
-	http.HandleFunc("/vshare1", uploadVideo) // Upload video data
-	http.HandleFunc("/vshare2", getVideo)    // Fetch video data
+	http.HandleFunc("/vshare", handleConnections)
 
-	fmt.Println("Server running on port 8080")
+	go handleMessages()
+
+	fmt.Println("Server started on :8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("Server error:", err)
 	}
 }
