@@ -3,37 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Chat</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        video { width: 45%; border: 2px solid #69e4ff; margin: 10px; }
-        button { padding: 10px; margin: 10px; }
-    </style>
+    <title>Video Share</title>
 </head>
 <body>
-    <h2>Video Chat</h2>
-    <video id="localVideo" autoplay playsinline muted></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-    <br>
-    <button onclick="startStreaming()">Start Streaming</button>
+    <video id="video" autoplay playsinline></video>
+    <button onclick="startStream()">Start Sharing</button>
 
     <script>
-        let ws = new WebSocket("https://vshare-rr5y.onrender.com/ws/1");
+        const ws = new WebSocket("ws://localhost:8080/vshare");
+        const video = document.getElementById("video");
 
-        ws.onmessage = function(event) {
-            const blob = new Blob([event.data], { type: "video/webm" });
-            document.getElementById("remoteVideo").src = URL.createObjectURL(blob);
+        ws.onmessage = (event) => {
+            const blob = new Blob([event.data]);
+            video.src = URL.createObjectURL(blob);
         };
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(stream => {
-                document.getElementById("localVideo").srcObject = stream;
-                const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
-                mediaRecorder.ondataavailable = event => ws.send(event.data);
+        async function startStream() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            const mediaRecorder = new MediaRecorder(stream);
 
-                window.startStreaming = () => mediaRecorder.start(100);
-            })
-            .catch(error => console.error("Error accessing media devices:", error));
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    ws.send(event.data);
+                }
+            };
+
+            mediaRecorder.start(100);
+        }
     </script>
 </body>
 </html>
