@@ -2,60 +2,55 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
-
-	"github.com/gorilla/websocket"
+	"sync"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+var (
+	videoData []byte
+	mutex     sync.Mutex
+)
+
+func uploadVideo(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		file, _, err := r.FormFile("video")
+		if err != nil {
+			http.Error(w, "Failed to read video", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			http.Error(w, "Failed to process video", http.StatusInternalServerError)
+			return
+		}
+
+		mutex.Lock()
+		videoData = data
+		mutex.Unlock()
+	}
 }
 
-var clients = make(map[*websocket.Conn]bool)
-var broadcast = make(chan []byte)
-
-func handleConnections(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println("Error upgrading:", err)
+func getVideo(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	if len(videoData) == 0 {
+		mutex.Unlock()
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	defer conn.Close()
-
-	clients[conn] = true
-
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			delete(clients, conn)
-			break
-		}
-		broadcast <- message
-	}
-}
-
-func handleMessages() {
-	for {
-		msg := <-broadcast
-		for client := range clients {
-			err := client.WriteMessage(websocket.BinaryMessage, msg)
-			if err != nil {
-				client.Close()
-				delete(clients, client)
-			}
-		}
-	}
+	w.Write(videoData)
+	mutex.Unlock()
 }
 
 func main() {
-	http.HandleFunc("/vshare", handleConnections)
-	go handleMessages()
+	http.HandleFunc("/vshare", uploadVideo)  // POST video data
+	http.HandleFunc("/vshare", getVideo)     // GET video data
 
-	fmt.Println("Server started on :8080")
+	fmt.Println("Server running on port 8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
-		fmt.Println("Server error:", err)
+		fmt.Println("Error:", err)
 	}
 }
